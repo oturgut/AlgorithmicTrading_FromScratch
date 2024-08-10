@@ -2,6 +2,7 @@ from datetime import datetime
 from DataDownloader import DataDownloader
 from Visualizer import Visualizer
 from LinearRegressionModel import LinearRegressionModel
+from TransformerModel import TransformerModel
 from ModelTrainer import ModelTrainer
 from DataTrend import DataTrend
 import pandas as pd
@@ -9,19 +10,16 @@ import pandas as pd
 
 def main():
     symbols = ["AAPL", "MSFT", "GOOGL"]
-    start_date = "2023-01-01"
+    start_date = "2019-01-01"
     end_date = "2023-11-01"
     save_path = '/Users/ozhanturgut/Documents/GitHub/AlgorithmicTrading_FromScratch/Python/data'
     model_path = '/Users/ozhanturgut/Documents/GitHub/AlgorithmicTrading_FromScratch/Python/model/lr_test.pkl'
+    model_path_trnsfrmr = '/Users/ozhanturgut/Documents/GitHub/AlgorithmicTrading_FromScratch/Python/model/trnsfrmr_test.pkl'
 
     data_downloader = DataDownloader()
     downloaded_data = data_downloader.download_data(
         symbols, start_date, end_date, save_path=save_path
     )
-
-    # Choose the model (you can replace this with your custom model)
-    model = LinearRegressionModel()
-    visualizer = Visualizer()
 
     # Assume data_df and target_column are available from your data
     # You can replace this with your actual data loading and preprocessing
@@ -31,6 +29,7 @@ def main():
     #print(data_df.head())
     target_column = 'Adj Close'
 
+    visualizer = Visualizer()
     # Data trends
     for symbol in symbols:
         trend_analyzer = DataTrend(data=downloaded_data[symbol], column_name=target_column, period=30)
@@ -44,13 +43,23 @@ def main():
         visualizer.plot_decomposition(additive_decomposition, symbol + ' - Additive')
 
 
+    # Choose the model (you can replace this with your custom model)
+    model = LinearRegressionModel()
+
     # Train the model
     rolling_window_size = 20  # Adjust the window size as needed
     trainer = ModelTrainer(model, data_df=data_df, target_column=target_column, retrain=True,
                            rolling_window_size=rolling_window_size)
-
     # Save the model
     trainer.save_model(model_path)
+
+    # Choose the model (you can replace this with your custom model)
+    window_size = 10
+    transformer_model = TransformerModel(window_size=window_size)
+
+    # Train and evaluate the TransformerModel
+    trainer_trnsfrmr = ModelTrainer(model=transformer_model, data_df=data_df, target_column='Close', retrain=True)
+    trainer_trnsfrmr.save_model(model_path_trnsfrmr)
 
     # Or load a pre-trained model
     # trainer = ModelTrainer(model, retrain=False)
@@ -69,8 +78,10 @@ def main():
         window_predictions = trainer.model.predict(window_data.drop(columns=[target_column]))
         predictions.append(window_predictions[-1])  # Appending the prediction for the last day in the window
 
-    for symbol, data in downloaded_data.items():
-        visualizer.plot_data(data, title=f"Stock Price - {symbol}")
+    visualizeData = False
+    if visualizeData:
+        for symbol, data in downloaded_data.items():
+            visualizer.plot_data(data, title=f"Stock Price - {symbol}")
 
     # Plot real data and model predictions together
     visualizer.plot_predictions(new_data_df, predictions, title="Real vs Predicted Prices")
